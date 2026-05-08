@@ -21,4 +21,8 @@ public class UploadController {
         return ResponseEntity.ok(uploadService.uploadImage(file));
     }
 
+    @PutMapping("/")
+    public ResponseEntity<AType> updateImage(@ModelAttribute FileUploadReq file) {
+        return ResponseEntity.ok(uploadService.updateImage(file));
+    }
 }

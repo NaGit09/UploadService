@@ -17,9 +17,10 @@ import lombok.NoArgsConstructor;
 public class FileUpload {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
     // Cloudinary
     private String publicId;
+    
     private String url;
     // UserID
     private String uploadedBy;

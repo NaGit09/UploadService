@@ -9,6 +9,10 @@ import org.springframework.web.multipart.MultipartFile;
 @AllArgsConstructor
 @NoArgsConstructor
 public class FileUploadReq {
+
+    private Integer oldFileId;
+
     private MultipartFile file;
+    
     private String uploadedBy;
 }
