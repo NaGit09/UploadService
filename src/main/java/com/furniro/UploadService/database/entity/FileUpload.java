@@ -8,6 +8,8 @@ import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "FileUpload")
@@ -18,14 +20,18 @@ public class FileUpload {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
+
     // Cloudinary
     private String publicId;
     
     private String url;
+    
     // UserID
     private String uploadedBy;
+    
     // Date
-    private String uploadedAt;
+    @CreationTimestamp
+    private LocalDateTime uploadedAt;
 
     private Boolean isActive;
     

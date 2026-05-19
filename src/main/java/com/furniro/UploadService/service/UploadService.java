@@ -13,7 +13,11 @@ import com.furniro.UploadService.utils.UploadErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
@@ -37,7 +41,7 @@ public class UploadService {
         fileUpload.setPublicId(cloudinaryResponse.getPublicId());
         fileUpload.setUrl(cloudinaryResponse.getUrl());
         fileUpload.setUploadedBy(file.getUploadedBy());
-        fileUpload.setIsActive(true);
+        fileUpload.setIsActive(false);
 
         fileUploadRepository.save(fileUpload);
 
@@ -54,7 +58,7 @@ public class UploadService {
         FileUpload fileUpload = fileUploadRepository
                 .findById(fileID)
                 .orElseThrow(() -> new UploadException(UploadErrorCode.UPLOAD_NOT_FOUND));
-        
+
         // 2. Active file
         fileUpload.setIsActive(true);
         fileUploadRepository.save(fileUpload);
@@ -100,7 +104,7 @@ public class UploadService {
                 .orElseThrow(() -> new UploadException(UploadErrorCode.UPLOAD_NOT_FOUND));
 
         cloudinaryService.deleteFile(fileUpload.getPublicId());
-        
+
         fileUpload.setPublicId(cloudinaryResponse.getPublicId());
         fileUpload.setUrl(cloudinaryResponse.getUrl());
         fileUpload.setUploadedBy(file.getUploadedBy());
@@ -111,5 +115,29 @@ public class UploadService {
         // 4. Return result
         return ApiType.success(cloudinaryResponse);
     }
-    
+
+    @Transactional
+    public void autoDeleteImageNotActive() {
+        log.info("Running scheduled task to clean up inactive image drafts...");
+        // Define draft threshold (e.g., 30 days)
+        int daysThreshold = 30;
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(daysThreshold);
+
+        List<FileUpload> draftFiles = fileUploadRepository.findFileDraft(false, cutoff);
+        log.info("Found {} inactive image draft(s) older than {} days", draftFiles.size(), daysThreshold);
+
+        for (FileUpload fileUpload : draftFiles) {
+            try {
+                // Delete from Cloudinary
+                if (fileUpload.getPublicId() != null) {
+                    cloudinaryService.deleteFile(fileUpload.getPublicId());
+                }
+                // Delete from database
+                fileUploadRepository.delete(fileUpload);
+                log.info("Successfully deleted draft image: {}", fileUpload.getId());
+            } catch (Exception e) {
+                log.error("Failed to delete draft image with ID: " + fileUpload.getId(), e);
+            }
+        }
+    }
 }
