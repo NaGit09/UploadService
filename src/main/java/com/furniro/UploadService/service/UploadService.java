@@ -46,7 +46,7 @@ public class UploadService {
         fileUploadRepository.save(fileUpload);
 
         // 4. Return result
-        return ApiType.success(cloudinaryResponse);
+        return ApiType.success(fileUpload);
     }
 
     public void activeImage(Integer fileID) {
