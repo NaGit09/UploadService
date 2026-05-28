@@ -17,12 +17,12 @@ public class UploadController {
 
     private final UploadService uploadService;
 
-    @PostMapping("/")
+    @PostMapping()
     public ResponseEntity<AType> uploadImage(@ModelAttribute FileUploadReq file) {
         return ResponseEntity.ok(uploadService.uploadImage(file));
     }
 
-    @PutMapping("/")
+    @PutMapping()
     public ResponseEntity<AType> updateImage(@ModelAttribute FileUploadReq file) {
         return ResponseEntity.ok(uploadService.updateImage(file));
     }

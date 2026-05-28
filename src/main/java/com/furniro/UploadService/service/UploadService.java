@@ -49,6 +49,39 @@ public class UploadService {
         return ApiType.success(fileUpload);
     }
 
+    @Transactional
+    public AType updateImage(FileUploadReq file) {
+        // 1. check file infomation
+        if (file == null || file.getFile() == null || file.getFile().isEmpty()) {
+            return ErrorType.badRequest("File is required");
+        }
+
+        // 2. Upload file to cloudinary
+        CloudinaryResponse cloudinaryResponse = cloudinaryService.uploadImage(file.getFile());
+
+        // 3. Save file to database
+        FileUpload oldFileUpload = fileUploadRepository.findById(file.getOldFileId())
+                .orElseThrow(() -> new UploadException(UploadErrorCode.UPLOAD_NOT_FOUND));
+
+        // Delete old file from Cloudinary
+        cloudinaryService.deleteFile(oldFileUpload.getPublicId());
+
+        // Delete old record from database
+        fileUploadRepository.delete(oldFileUpload);
+
+        // Create new record with new file
+        FileUpload newFileUpload = new FileUpload();
+        newFileUpload.setPublicId(cloudinaryResponse.getPublicId());
+        newFileUpload.setUrl(cloudinaryResponse.getUrl());
+        newFileUpload.setUploadedBy(file.getUploadedBy());
+        newFileUpload.setIsActive(true);
+
+        fileUploadRepository.save(newFileUpload);
+
+        // 4. Return result
+        return ApiType.success(newFileUpload);
+    }
+
     public void activeImage(Integer fileID) {
         // 1. check file infomation
         if (fileID == null) {
@@ -90,31 +123,6 @@ public class UploadService {
         return;
     }
 
-    public AType updateImage(FileUploadReq file) {
-        // 1. check file infomation
-        if (file == null || file.getFile() == null || file.getFile().isEmpty()) {
-            return ErrorType.badRequest("File is required");
-        }
-
-        // 2. Upload file to cloudinary
-        CloudinaryResponse cloudinaryResponse = cloudinaryService.uploadImage(file.getFile());
-
-        // 3. Save file to database
-        FileUpload fileUpload = fileUploadRepository.findById(file.getOldFileId())
-                .orElseThrow(() -> new UploadException(UploadErrorCode.UPLOAD_NOT_FOUND));
-
-        cloudinaryService.deleteFile(fileUpload.getPublicId());
-
-        fileUpload.setPublicId(cloudinaryResponse.getPublicId());
-        fileUpload.setUrl(cloudinaryResponse.getUrl());
-        fileUpload.setUploadedBy(file.getUploadedBy());
-        fileUpload.setIsActive(true);
-
-        fileUploadRepository.save(fileUpload);
-
-        // 4. Return result
-        return ApiType.success(cloudinaryResponse);
-    }
 
     @Transactional
     public void autoDeleteImageNotActive() {
