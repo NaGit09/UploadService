@@ -4,6 +4,7 @@ import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import com.furniro.UploadService.dto.res.CloudinaryResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -13,6 +14,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CloudinaryService {
 
     private final Cloudinary cloudinary;
@@ -59,7 +61,7 @@ public class CloudinaryService {
             // 3. Return result
             return result.get("result").equals("success");
         } catch (IOException e) {
-            System.err.println("Cloudinary Delete Error: " + e.getMessage());
+            log.error("Cloudinary Delete Error for publicId {}: {}", publicId, e.getMessage());
             return false;
         }
     }

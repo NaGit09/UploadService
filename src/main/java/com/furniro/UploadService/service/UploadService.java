@@ -18,6 +18,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @Slf4j
@@ -26,6 +27,7 @@ public class UploadService {
 
     private final CloudinaryService cloudinaryService;
     private final FileUploadRepository fileUploadRepository;
+    private final TransactionTemplate transactionTemplate;
 
     public AType uploadImage(FileUploadReq file) {
         // 1. check file infomation
@@ -49,37 +51,40 @@ public class UploadService {
         return ApiType.success(fileUpload);
     }
 
-    @Transactional
     public AType updateImage(FileUploadReq file) {
-        // 1. check file infomation
+
+        // 1. Check file information
         if (file == null || file.getFile() == null || file.getFile().isEmpty()) {
             return ErrorType.badRequest("File is required");
         }
 
-        // 2. Upload file to cloudinary
-        CloudinaryResponse cloudinaryResponse = cloudinaryService.uploadImage(file.getFile());
-
-        // 3. Save file to database
+        // 2. Find old record (read operation)
         FileUpload oldFileUpload = fileUploadRepository.findById(file.getOldFileId())
                 .orElseThrow(() -> new UploadException(UploadErrorCode.UPLOAD_NOT_FOUND));
 
-        // Delete old file from Cloudinary
-        cloudinaryService.deleteFile(oldFileUpload.getPublicId());
+        String oldPublicId = oldFileUpload.getPublicId();
 
-        // Delete old record from database
-        fileUploadRepository.delete(oldFileUpload);
+        // 3. Upload new file to Cloudinary (slow network call, outside transaction)
+        CloudinaryResponse cloudinaryResponse = cloudinaryService.uploadImage(file.getFile());
 
-        // Create new record with new file
-        FileUpload newFileUpload = new FileUpload();
-        newFileUpload.setPublicId(cloudinaryResponse.getPublicId());
-        newFileUpload.setUrl(cloudinaryResponse.getUrl());
-        newFileUpload.setUploadedBy(file.getUploadedBy());
-        newFileUpload.setIsActive(true);
+        // 4. Save changes to database inside a localized transaction (keeps same ID)
+        FileUpload updatedFileUpload = transactionTemplate.execute(status -> {
+            FileUpload existing = fileUploadRepository.findById(file.getOldFileId())
+                    .orElseThrow(() -> new UploadException(UploadErrorCode.UPLOAD_NOT_FOUND));
+            existing.setPublicId(cloudinaryResponse.getPublicId());
+            existing.setUrl(cloudinaryResponse.getUrl());
+            existing.setUploadedBy(file.getUploadedBy());
+            existing.setIsActive(true);
+            return fileUploadRepository.save(existing);
+        });
 
-        fileUploadRepository.save(newFileUpload);
+        // 5. Delete old file from Cloudinary (slow network call, outside transaction)
+        if (oldPublicId != null) {
+            cloudinaryService.deleteFile(oldPublicId);
+        }
 
-        // 4. Return result
-        return ApiType.success(newFileUpload);
+        // 6. Return result
+        return ApiType.success(updatedFileUpload);
     }
 
     public void activeImage(Integer fileID) {
@@ -88,6 +93,7 @@ public class UploadService {
             log.error("File ID is required !");
             return;
         }
+        
         FileUpload fileUpload = fileUploadRepository
                 .findById(fileID)
                 .orElseThrow(() -> new UploadException(UploadErrorCode.UPLOAD_NOT_FOUND));
@@ -122,7 +128,6 @@ public class UploadService {
         log.info("File deleted successfully !");
         return;
     }
-
 
     @Transactional
     public void autoDeleteImageNotActive() {

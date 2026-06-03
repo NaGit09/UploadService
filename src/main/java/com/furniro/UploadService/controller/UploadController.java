@@ -1,7 +1,6 @@
 package com.furniro.UploadService.controller;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.*;
 
 import com.furniro.UploadService.dto.API.AType;
@@ -25,10 +24,5 @@ public class UploadController {
     @PutMapping()
     public ResponseEntity<AType> updateImage(@ModelAttribute FileUploadReq file) {
         return ResponseEntity.ok(uploadService.updateImage(file));
-    }
-
-    @Scheduled(cron = "0 0 0 * * *")
-    public void autoDeleteImageNotActive() {
-        uploadService.autoDeleteImageNotActive();
     }
 }
